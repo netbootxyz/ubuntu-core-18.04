@@ -4,5 +4,5 @@ endpoints:
     files:
     - initrd
     - vmlinuz
-    os: ubuntu
-    version: 18.04
+    os: "ubuntu"
+    version: "18.04"
