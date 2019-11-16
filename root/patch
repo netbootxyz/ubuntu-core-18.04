@@ -1,6 +1,6 @@
---- scripts/casper.orig 2016-10-05 19:07:11.000000000 +0200
-+++ scripts/casper      2016-10-05 19:26:58.000000000 +0200
-@@ -33,6 +33,10 @@ fi
+--- casper	2017-05-14 00:09:40.000000000 +0000
++++ casper.new	2019-11-16 07:47:52.791003189 +0000
+@@ -33,6 +33,10 @@
  parse_cmdline() {
      for x in $(cat /proc/cmdline); do
          case $x in
@@ -11,7 +11,7 @@
              showmounts|show-cow)
                  export SHOWMOUNTS='Yes' ;;
              persistent)
-@@ -212,20 +216,31 @@ do_netmount() {
+@@ -212,20 +216,34 @@
          NFSROOT=${ROOTSERVER}:${ROOTPATH}
      fi
  
@@ -46,6 +46,9 @@
 +    mount -t tmpfs -o size=`/bin/wget ${URL} --spider --server-response -O - 2>&1 | sed -ne '/Content-Length/{s/.*: //;p}'` tmpfs ${mountpoint}
 +    mkdir -p ${mountpoint}/casper
 +    if /bin/wget --progress=bar:force:noscroll ${URL} -O ${mountpoint}/casper/root.squashfs; then rc=0; fi
++    if [ ! -z "$(/bin/wget -q --spider -S --max-redirect 0 "${URL}".part2 2>&1 >/dev/null | grep "200 OK\|302 Found" || :)" ]; then
++        if /bin/wget --progress=bar:force:noscroll ${URL}.part2 -O ->> ${mountpoint}/casper/root.squashfs; then rc=0; fi
++    fi
 +    return ${rc}
 +}
 +
