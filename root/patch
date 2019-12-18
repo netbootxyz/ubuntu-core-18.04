@@ -43,11 +43,11 @@
 +do_httpmount() {
 +    rc=1
 +    mkdir -p ${mountpoint}
-+    mount -t tmpfs -o size=`/bin/wget ${URL} --spider --server-response -O - 2>&1 | sed -ne '/Content-Length/{s/.*: //;p}'` tmpfs ${mountpoint}
++    mount -t tmpfs -o size=`/bin/curl -sI ${URL} | sed -ne '/Content-Length/{s/.*: //;p}'` tmpfs ${mountpoint}
 +    mkdir -p ${mountpoint}/casper
-+    if /bin/wget --progress=bar:force:noscroll ${URL} -O ${mountpoint}/casper/root.squashfs; then rc=0; fi
-+    if [ ! -z "$(/bin/wget -q --spider -S --max-redirect 0 "${URL}".part2 2>&1 >/dev/null | grep "200 OK\|302 Found" || :)" ]; then
-+        if /bin/wget --progress=bar:force:noscroll ${URL}.part2 -O ->> ${mountpoint}/casper/root.squashfs; then rc=0; fi
++    if /bin/curl -L ${URL} -o ${mountpoint}/casper/root.squashfs; then rc=0; fi
++    if [ ! -z "$(/bin/curl -sI "${URL}".part2 | grep "200 OK\|302 Found" || :)" ]; then
++        if /bin/curl -L ${URL}.part2 -o ->> ${mountpoint}/casper/root.squashfs; then rc=0; fi
 +    fi
 +    return ${rc}
 +}

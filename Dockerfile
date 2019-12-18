@@ -1,40 +1,66 @@
-FROM ubuntu:bionic
+# static curl build
+FROM alpine:3.10 as curlstage
+ARG VERSION="7.67.0"
 
-# versioning
-ARG EXTERNAL_VERSION
+RUN \
+ echo "**** install deps ****" && \
+ apk add --no-cache \
+	ca-certificates \
+	gcc \
+	make \
+	musl-dev \
+	openssl-dev \
+	zlib-dev && \
+ echo "**** download and compile curl ****" && \
+ wget "https://curl.haxx.se/download/curl-${VERSION}.tar.gz" &&\
+ tar -xf curl-${VERSION}.tar.gz && \
+ cd curl-* && \
+ ./configure \
+	--disable-shared \
+	--with-ca-fallback && \
+ make curl_LDFLAGS=-all-static && \
+ strip src/curl && \
+ echo "**** organize files ****" && \
+ mkdir -p \
+	/curlout/bin \
+	/curlout/etc/ssl/certs && \
+ cp \
+	src/curl \
+	/curlout/bin && \
+ cp \
+	/etc/ssl/cert.pem \
+        /curlout/etc/ssl/certs/ca-certificates.crt
+
+# final mod layer
+FROM ubuntu:bionic
 
 # environment settings
 ARG DEBIAN_FRONTEND="noninteractive"
 ENV XDG_CONFIG_HOME="/config/xdg"
 
-# add local files
+# add files
 COPY /root /
+COPY --from=curlstage /curlout /curlout
 
 RUN \
  echo "**** install deps ****" && \
  apt-get update && \
  apt-get install -y \
 	casper \
-	curl \
-	initramfs-tools \
-	p7zip-full \
 	patch \
-	pixz \
-	psmisc \
-	wget && \
+	rsync && \
  echo "**** patch casper ****" && \
  patch /usr/share/initramfs-tools/scripts/casper < /patch && \
- echo "**** install kernel ****" && \
- if [ -z ${EXTERNAL_VERSION+x} ]; then \
-	EXTERNAL_VERSION=$(curl -sX GET http://archive.ubuntu.com/ubuntu/dists/bionic/main/binary-amd64/Packages.gz | gunzip -c |grep -A 7 -m 1 "Package: linux-image-virtual" | awk -F ": " '/Version/{print $2;exit}');\
- fi && \
- apt-get install -y \
-	linux-image-virtual=${EXTERNAL_VERSION} && \
- echo "**** clean up ****" && \
- mkdir /buildout && \
- rm -rf \
-	/tmp/* \
-	/var/lib/apt/lists/* \
-	/var/tmp/*
+ echo "**** organize files ****" && \
+ mkdir -p \
+	/buildout \
+	/modlayer/scripts && \
+ cp \
+	/usr/share/initramfs-tools/scripts/casper \
+	/modlayer/scripts/ && \
+ cp -ax \
+	/curlout/* \
+	/modlayer/
+
 
 ENTRYPOINT [ "/build.sh" ]
